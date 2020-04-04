@@ -1,0 +1,14 @@
+﻿@{
+    ViewBag.Title = "登录";
+}
+    <p class="bg-success">管理员密码请在Web.config文件中进行配置; appSettings下的 adminPwd 字段</p>
+<div class="login-form">
+
+    <form method="post">
+        <div class="form-group">
+            <label for="password">管理员密码：</label>
+            <input style="max-width: none;" type="password" class="form-control" id="password" name="password" placeholder="Password">
+        </div>
+        <button type="submit" class="btn btn-primary">登录</button><span class="error-msg">@ViewBag.Message</span>
+    </form>
+</div>

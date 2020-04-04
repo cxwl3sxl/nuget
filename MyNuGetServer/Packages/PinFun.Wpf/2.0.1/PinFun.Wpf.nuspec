@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>PinFun.Wpf</id>
+    <version>2.0.1</version>
+    <authors>四川品杰科技有限公司</authors>
+    <owners>四川品杰科技有限公司</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <icon>icon.png</icon>
+    <description>WPF客户端基础框架</description>
+    <dependencies>
+      <group targetFramework=".NETCoreApp3.1">
+        <dependency id="PinFun.WebBrowser" version="2.0.1" exclude="Build,Analyzers" />
+        <dependency id="PinFun.Core" version="2.0.1" exclude="Build,Analyzers" />
+        <dependency id="PinFun.Dray.Contract" version="2.0.1" exclude="Build,Analyzers" />
+        <dependency id="MaterialDesignColors" version="1.2.1" exclude="Build,Analyzers" />
+        <dependency id="MaterialDesignThemes" version="3.0.0" exclude="Build,Analyzers" />
+        <dependency id="log4net" version="2.0.8" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+    <frameworkReferences>
+      <group targetFramework=".NETCoreApp3.1">
+        <frameworkReference name="Microsoft.WindowsDesktop.App.WPF" />
+      </group>
+    </frameworkReferences>
+  </metadata>
+</package>
