@@ -3,9 +3,15 @@
 }
 
 <div class="jumbotron">
+    <form>
+        <div class="form-group">
+            <input type="text" style="max-width: none;" onchange="filterPackages(this)" class="form-control" id="searchPackage" placeholder="输入关键字筛选包列表">
+        </div>
+    </form>
     <table class="table table-hover">
         <thead>
             <tr>
+                <th><input id="check-all" onclick="checkAll()" type="checkbox" /></th>
                 <th>包名称</th>
                 <th>版本</th>
                 <th>发布时间</th>
@@ -16,12 +22,19 @@
         </thead>
         <tbody id="table-body">
         </tbody>
+        <tfoot>
+            <tr>
+                <th colspan="6"><span id="checkedCount"></span></th>
+                <th><button id="deleteChecked" class="btn btn-danger" disabled="disabled" onclick="DeleteChecked(this)">删除</button></th>
+            </tr>
+        </tfoot>
     </table>
 </div>
 
 @section scripts
 {
     <script>
+        var packages = [];
         $(function () {
             Reload();
         });
@@ -29,46 +42,144 @@
         function Reload() {
             $.get("/nuget/Packages", function (xml) {
                 var doc = $(xml);
+                packages = [];
                 var entry = doc.find("feed").find("entry");
                 if (entry.length === 0) {
-                    $("#table-body").html('<tr><td colspan="6" style="text-align:center">没有包</td></tr>');
+                    $("#table-body").html('<tr><td colspan="7" style="text-align:center">没有包</td></tr>');
                 } else {
                     $("#table-body").html('');
                 }
+                var index = 0;
                 entry.each(function () {
                     var properties = $(this).find("m\\:properties");
                     var id = properties.find("d\\:Id").text();
                     var version = properties.find("d\\:Version").text();
                     var authors = properties.find("d\\:Authors").text();
-                    var publish = properties.find("d\\:Published").text();
+                    var publish = properties.find("d\\:Published").text().split('.')[0].replace('T', ' ');
                     var size = properties.find("d\\:PackageSize").text();
 
-                    var html = "";
-                    html += "<tr>";
-                    html += "<td>" + id + "</td>";
-                    html += "<td>" + version + "</td>";
-                    html += "<td>" + publish + "</td>";
-                    html += "<td>" + authors + "</td>";
-                    html += "<td>" + (parseInt(size) / 1024).toFixed(0) + " KB</td>";
-                    html += '<td><button type="button" data-id="' + id + '" data-ver="' + version + '" class="btn btn-danger" onclick="Delete(this)">删除</button></td>';
-                    html += "</tr>";
-                    $("#table-body").append($(html));
+                    var item = {
+                        sn: index,
+                        id: id,
+                        version: version,
+                        authors: authors,
+                        publish: publish,
+                        size: size
+                    };
+                    packages.push(item);
+                    renderItem(item);
+                    index++;
                 });
+                sumChecked();
             });
+        }
+
+        function renderItem(item) {
+            var html = "";
+            html += "<tr>";
+            html += "<th><input class='item-checkbox' id='cb-" + item.sn + "' type='checkbox'/></th>";
+            html += "<td onclick='cbOnClick(\"" + item.sn + "\")'>" + item.id + "</td>";
+            html += "<td onclick='cbOnClick(\"" + item.sn + "\")'>" + item.version + "</td>";
+            html += "<td onclick='cbOnClick(\"" + item.sn + "\")'>" + item.publish + "</td>";
+            html += "<td onclick='cbOnClick(\"" + item.sn + "\")'>" + item.authors + "</td>";
+            html += "<td onclick='cbOnClick(\"" + item.sn + "\")'>" + (parseInt(item.size) / 1024).toFixed(0) + " KB</td>";
+            html += '<td><button id="del-btn-'
+                + item.sn
+                + '" type="button" data-id="'
+                + item.id
+                + '" data-ver="'
+                + item.version
+                + '" class="btn btn-danger" onclick="Delete(this)">删除</button></td>';
+            html += "</tr>";
+            $("#table-body").append($(html));
+        }
+
+        function cbOnClick(sn) {
+            $("#cb-" + sn).click();
+            var isAllChecked = true;
+            $(".item-checkbox").each(function () {
+                isAllChecked = isAllChecked && $(this).prop("checked");
+            });
+            $("#check-all").prop("checked", isAllChecked);
+            sumChecked();
+        }
+
+        function checkAll() {
+            var val = $("#check-all").prop("checked");
+            $(".item-checkbox").prop("checked", val);
+            sumChecked();
+        }
+
+        function sumChecked() {
+            var checked = $(".item-checkbox:checked").length;
+            $("#checkedCount").data("checked", checked).text("已选中" + checked + "项");
+            $("#deleteChecked").attr("disabled", checked <= 0);
         }
 
         function Delete(btn) {
             if (confirm("确定要删除该包么？")) {
                 var id = $(btn).data("id");
                 var ver = $(btn).data("ver");
-                $.post("/api/Package/Delete?id=" + id + "&version=" + ver, function (r) {
-                    if (r) {
-                        alert(r);
-                    } else {
-                        Reload();
-                    }
+                delPackage(id, ver, Reload);
+            }
+        }
+
+        function delPackage(id, ver, callback) {
+            $.post("/api/Package/Delete?id=" + id + "&version=" + ver, function (r) {
+                if (r) {
+                    alert(r);
+                } else {
+                    callback();
+                }
+            });
+        }
+
+        function DeleteChecked(btn) {
+            var all = $("#checkedCount").data("checked");
+            if (confirm("确定要删除选中的" + all + "项么？")) {
+                $("#deleteChecked").attr("disabled", true).text("...");
+                $(".item-checkbox:checked").each(function () {
+                    var btn = $("#del-btn-" + $(this).attr("id").replace("cb-", ""));
+                    var id = btn.data("id");
+                    var ver = btn.data("ver");
+                    delPackage(id, ver, function () {
+                        all = all - 1;
+                        if (all <= 0) {
+                            $("#deleteChecked").attr("disabled", false).text("删除");
+                            Reload();
+                        }
+                    });
                 });
             }
+        }
+
+        function filterPackages(input) {
+            var txt = $(input).val();
+            if (txt.length === 0) {
+                renderArray(packages);
+            } else {
+                var result = [];
+                var regex = new RegExp(".*" + txt + ".*", "ig");
+                for (var i = 0; i < packages.length; i++) {
+                    var item = packages[i];
+                    if (regex.test(item.id)) {
+                        result.push(item);
+                    }
+                }
+                renderArray(result);
+            }
+        }
+
+        function renderArray(array) {
+            if (array.length === 0) {
+                $("#table-body").html('<tr><td colspan="7" style="text-align:center">没有包</td></tr>');
+            } else {
+                $("#table-body").html('');
+                for (var i = 0; i < array.length; i++) {
+                    renderItem(array[i]);
+                }
+            }
+            sumChecked();
         }
     </script>
 }

@@ -54,3 +54,7 @@ textarea {
 .navbar-nav {
     flex-direction: row;
 }
+
+.jumbotron {
+    padding: 20px;
+}
