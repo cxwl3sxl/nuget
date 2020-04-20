@@ -58,3 +58,22 @@ textarea {
 .jumbotron {
     padding: 20px;
 }
+
+.package-list {
+    position: fixed;
+    left: 5px;
+    border: solid 1px #adb5bd;
+    border-radius: 5px;
+    background: whitesmoke;
+    list-style: none;
+    padding: 0px;
+}
+
+    .package-list > li {
+        padding: 3px 10px;
+        cursor: pointer;
+    }
+
+.li-on {
+    background: #dee2e6;
+}

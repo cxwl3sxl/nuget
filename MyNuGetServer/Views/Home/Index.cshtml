@@ -2,6 +2,9 @@
     ViewBag.Title = "包管理";
 }
 
+<ul class="package-list">
+</ul>
+
 <div class="jumbotron">
     <form>
         <div class="form-group">
@@ -35,46 +38,85 @@
 {
     <script>
         var packages = [];
+        var packageNameInfos = [];
         $(function () {
             Reload();
         });
 
         function Reload() {
-            $.get("/nuget/Packages", function (xml) {
-                var doc = $(xml);
-                packages = [];
-                var entry = doc.find("feed").find("entry");
-                if (entry.length === 0) {
-                    $("#table-body").html('<tr><td colspan="7" style="text-align:center">没有包</td></tr>');
-                } else {
-                    $("#table-body").html('');
-                }
-                var index = 0;
-                entry.each(function () {
-                    var properties = $(this).find("m\\:properties");
-                    var id = properties.find("d\\:Id").text();
-                    var version = properties.find("d\\:Version").text();
-                    var authors = properties.find("d\\:Authors").text();
-                    var publish = properties.find("d\\:Published").text().split('.')[0].replace('T', ' ');
-                    var size = properties.find("d\\:PackageSize").text();
+            $.get("/nuget/Packages",
+                function (xml) {
+                    var doc = $(xml);
+                    packages = [];
+                    var entry = doc.find("feed").find("entry");
+                    if (entry.length === 0) {
+                        $("#table-body").html('<tr><td colspan="7" style="text-align:center">没有包</td></tr>');
+                    } else {
+                        $("#table-body").html('');
+                    }
+                    var index = 0;
+                    entry.each(function () {
+                        var properties = $(this).find("m\\:properties");
+                        var id = properties.find("d\\:Id").text();
+                        var version = properties.find("d\\:Version").text();
+                        var authors = properties.find("d\\:Authors").text();
+                        var publish = properties.find("d\\:Published").text().split('.')[0].replace('T', ' ');
+                        var size = properties.find("d\\:PackageSize").text();
 
-                    var item = {
-                        sn: index,
-                        id: id,
-                        version: version,
-                        authors: authors,
-                        publish: publish,
-                        size: size
-                    };
-                    packages.push(item);
-                    renderItem(item);
-                    index++;
+                        var item = {
+                            sn: index,
+                            id: id,
+                            version: version,
+                            authors: authors,
+                            publish: publish,
+                            size: size
+                        };
+                        packages.push(item);
+                        renderItem(item);
+                        index++;
+                    });
+                    sumChecked();
+                    renderSummary();
                 });
-                sumChecked();
+        }
+
+        function renderSummary() {
+            $(".package-list").html($("<li data-name=''>全部</li>"));
+            for (var i = 0; i < packageNameInfos.length; i++) {
+                var item = packageNameInfos[i];
+                $(".package-list").append($("<li data-name=" + item.name + ">" + item.name + "&nbsp;[" + item.count + "]</li>"));
+            }
+            $("ul.package-list>li").hover(function () {
+                $(this).addClass("li-on");
+            }, function () {
+                $(this).removeClass("li-on");
+            }).click(function () {
+                var key = $(this).data("name");
+                if (key.length === 0) {
+                    doFilterPackages(null);
+                } else {
+                    doFilterPackages(new RegExp("^" + key + "$", "i"));
+                }
             });
         }
 
         function renderItem(item) {
+
+            var needAdd = true;
+            for (var i = 0; i < packageNameInfos.length; i++) {
+                if (packageNameInfos[i].name === item.id) {
+                    packageNameInfos[i].count += 1;
+                    needAdd = false;
+                    break;
+                }
+            }
+            if (needAdd) {
+                packageNameInfos.push({
+                    name: item.id,
+                    count: 1
+                });
+            }
+
             var html = "";
             html += "<tr>";
             html += "<th><input class='item-checkbox' id='cb-" + item.sn + "' type='checkbox'/></th>";
@@ -82,14 +124,18 @@
             html += "<td onclick='cbOnClick(\"" + item.sn + "\")'>" + item.version + "</td>";
             html += "<td onclick='cbOnClick(\"" + item.sn + "\")'>" + item.publish + "</td>";
             html += "<td onclick='cbOnClick(\"" + item.sn + "\")'>" + item.authors + "</td>";
-            html += "<td onclick='cbOnClick(\"" + item.sn + "\")'>" + (parseInt(item.size) / 1024).toFixed(0) + " KB</td>";
-            html += '<td><button id="del-btn-'
-                + item.sn
-                + '" type="button" data-id="'
-                + item.id
-                + '" data-ver="'
-                + item.version
-                + '" class="btn btn-danger" onclick="Delete(this)">删除</button></td>';
+            html += "<td onclick='cbOnClick(\"" +
+                item.sn +
+                "\")'>" +
+                (parseInt(item.size) / 1024).toFixed(0) +
+                " KB</td>";
+            html += '<td><button id="del-btn-' +
+                item.sn +
+                '" type="button" data-id="' +
+                item.id +
+                '" data-ver="' +
+                item.version +
+                '" class="btn btn-danger" onclick="Delete(this)">删除</button></td>';
             html += "</tr>";
             $("#table-body").append($(html));
         }
@@ -125,13 +171,14 @@
         }
 
         function delPackage(id, ver, callback) {
-            $.post("/api/Package/Delete?id=" + id + "&version=" + ver, function (r) {
-                if (r) {
-                    alert(r);
-                } else {
-                    callback();
-                }
-            });
+            $.post("/api/Package/Delete?id=" + id + "&version=" + ver,
+                function (r) {
+                    if (r) {
+                        alert(r);
+                    } else {
+                        callback();
+                    }
+                });
         }
 
         function DeleteChecked(btn) {
@@ -142,13 +189,15 @@
                     var btn = $("#del-btn-" + $(this).attr("id").replace("cb-", ""));
                     var id = btn.data("id");
                     var ver = btn.data("ver");
-                    delPackage(id, ver, function () {
-                        all = all - 1;
-                        if (all <= 0) {
-                            $("#deleteChecked").attr("disabled", false).text("删除");
-                            Reload();
-                        }
-                    });
+                    delPackage(id,
+                        ver,
+                        function () {
+                            all = all - 1;
+                            if (all <= 0) {
+                                $("#deleteChecked").attr("disabled", false).text("删除");
+                                Reload();
+                            }
+                        });
                 });
             }
         }
@@ -156,17 +205,25 @@
         function filterPackages(input) {
             var txt = $(input).val();
             if (txt.length === 0) {
-                renderArray(packages);
+                doFilterPackages(null);
             } else {
+                doFilterPackages(new RegExp(".*" + txt + ".*", "i"));
+            }
+        }
+
+        function doFilterPackages(regex) {
+            if (regex) {
                 var result = [];
-                var regex = new RegExp(".*" + txt + ".*", "ig");
                 for (var i = 0; i < packages.length; i++) {
-                    var item = packages[i];
-                    if (regex.test(item.id)) {
-                        result.push(item);
+                    var id = packages[i].id;
+                    var match = regex.test(id);
+                    if (match) {
+                        result.push(packages[i]);
                     }
                 }
                 renderArray(result);
+            } else {
+                renderArray(packages);
             }
         }
 
