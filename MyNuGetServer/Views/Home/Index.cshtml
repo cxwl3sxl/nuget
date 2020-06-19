@@ -44,6 +44,10 @@
         });
 
         function Reload() {
+            packages = [];
+            packageNameInfos = [];
+            $("#deleteChecked").attr("disabled", false).text("删除");
+            $("#check-all").prop("checked", false);
             $.get("/nuget/Packages",
                 function (xml) {
                     var doc = $(xml);
@@ -84,20 +88,22 @@
             $(".package-list").html($("<li data-name=''>全部</li>"));
             for (var i = 0; i < packageNameInfos.length; i++) {
                 var item = packageNameInfos[i];
-                $(".package-list").append($("<li data-name=" + item.name + ">" + item.name + "&nbsp;[" + item.count + "]</li>"));
+                $(".package-list")
+                    .append($("<li data-name=" + item.name + ">" + item.name + "&nbsp;[" + item.count + "]</li>"));
             }
             $("ul.package-list>li").hover(function () {
                 $(this).addClass("li-on");
-            }, function () {
-                $(this).removeClass("li-on");
-            }).click(function () {
-                var key = $(this).data("name");
-                if (key.length === 0) {
-                    doFilterPackages(null);
-                } else {
-                    doFilterPackages(new RegExp("^" + key + "$", "i"));
-                }
-            });
+            },
+                function () {
+                    $(this).removeClass("li-on");
+                }).click(function () {
+                    var key = $(this).data("name");
+                    if (key.length === 0) {
+                        doFilterPackages(null);
+                    } else {
+                        doFilterPackages(new RegExp("^" + key + "$", "i"));
+                    }
+                });
         }
 
         function renderItem(item) {
@@ -175,6 +181,7 @@
                 function (r) {
                     if (r) {
                         alert(r);
+                        Reload();
                     } else {
                         callback();
                     }
@@ -185,20 +192,29 @@
             var all = $("#checkedCount").data("checked");
             if (confirm("确定要删除选中的" + all + "项么？")) {
                 $("#deleteChecked").attr("disabled", true).text("...");
+                var todo = [];
                 $(".item-checkbox:checked").each(function () {
                     var btn = $("#del-btn-" + $(this).attr("id").replace("cb-", ""));
                     var id = btn.data("id");
                     var ver = btn.data("ver");
-                    delPackage(id,
-                        ver,
-                        function () {
-                            all = all - 1;
-                            if (all <= 0) {
-                                $("#deleteChecked").attr("disabled", false).text("删除");
-                                Reload();
-                            }
-                        });
+                    todo.push({
+                        id: id,
+                        ver: ver
+                    });
                 });
+                if (todo.length <= 0) return;
+
+                var callback = function () {
+                    todo.splice(0, 1);
+                    if (todo.length <= 0) {
+                        $("#deleteChecked").attr("disabled", false).text("删除");
+                        Reload();
+                    } else {
+                        delPackage(todo[0].id, todo[0].ver, callback);
+                    }
+                };
+
+                delPackage(todo[0].id, todo[0].ver, callback);
             }
         }
 
