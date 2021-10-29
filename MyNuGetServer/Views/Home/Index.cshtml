@@ -2,36 +2,42 @@
     ViewBag.Title = "包管理";
 }
 
-<ul class="package-list">
-</ul>
+<div class="package-div">
+    <ul class="package-list">
+    </ul>
 
-<div class="jumbotron">
-    <form>
-        <div class="form-group">
-            <input type="text" style="max-width: none;" onchange="filterPackages(this)" class="form-control" id="searchPackage" placeholder="输入关键字筛选包列表">
+    <div class="jumbotron">
+        <form>
+            <div class="form-group">
+                <input type="text" style="max-width: none;" onchange="filterPackages(this)" class="form-control" id="searchPackage" placeholder="输入关键字筛选包列表">
+            </div>
+        </form>
+        <div class="table-div">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th><input id="check-all" onclick="checkAll()" type="checkbox" /></th>
+                        <th>包名称</th>
+                        <th>版本</th>
+                        <th>发布时间</th>
+                        <th>作者</th>
+                        <th>大小</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                </tbody>
+            </table>
         </div>
-    </form>
-    <table class="table table-hover">
-        <thead>
-            <tr>
-                <th><input id="check-all" onclick="checkAll()" type="checkbox" /></th>
-                <th>包名称</th>
-                <th>版本</th>
-                <th>发布时间</th>
-                <th>作者</th>
-                <th>大小</th>
-                <th>操作</th>
-            </tr>
-        </thead>
-        <tbody id="table-body">
-        </tbody>
-        <tfoot>
-            <tr>
-                <th colspan="6"><span id="checkedCount"></span></th>
-                <th><button id="deleteChecked" class="btn btn-danger" disabled="disabled" onclick="DeleteChecked(this)">删除</button></th>
-            </tr>
-        </tfoot>
-    </table>
+        <div class="table-tool">
+            <div><span id="checkedCount"></span></div>
+            <div style="margin-right: 44px">
+                <button class="btn btn-danger" onclick="DeleteOverdue()">清理过期版本</button>
+                <button id="deleteChecked" class="btn btn-danger" disabled="disabled" onclick="DeleteChecked(this)">删除</button>
+            </div>
+        </div>
+
+    </div>
 </div>
 
 @section scripts
@@ -39,6 +45,7 @@
     <script>
         var packages = [];
         var packageNameInfos = [];
+        var pendingDelete = [];
         $(function () {
             Reload();
         });
@@ -81,6 +88,8 @@
                     });
                     sumChecked();
                     renderSummary();
+
+                    alert("包数据加载成功，共计：" + packages.length + "个");
                 });
         }
 
@@ -254,5 +263,69 @@
             }
             sumChecked();
         }
+
+        function DeleteOverdue() {
+            if (!window.confirm("确定要移除所有库的过期版本么？")) return;
+            var maxVersions = [];
+            packages.forEach(ele => {
+                var index = maxVersions.findIndex(a => a.id === ele.id);
+                if (index >= 0) {
+                    if (isVersionMaxThan(ele, maxVersions[index])) {
+                        maxVersions.splice(index, 1);
+                        maxVersions.push(ele);
+                    }
+                } else {
+                    maxVersions.push(ele);
+                }
+            });
+            pendingDelete = [];
+            packages.forEach(ele => {
+                var max = maxVersions.find(a => a.id === ele.id);
+                if (!max) return;
+                if (max.version === ele.version) return;
+                pendingDelete.push(ele);
+            });
+
+            if (pendingDelete.length === 0) {
+                alert("已经没有可删除的过期包了");
+                return;
+            }
+
+            deletePackages();
+        }
+
+        function deletePackages() {
+            if (pendingDelete.length === 0) {
+                Reload();
+                return;
+            }
+            var package = pendingDelete[0];
+            console.log("正在删除包 " + package.id + " " + package.version);
+            $.post("/api/Package/Delete?id=" + package.id + "&version=" + package.version,
+                function (r) {
+                    if (r) {
+                        if (confirm("删除包" + package.id + " " + package.version + "失败:" + r + "，是否继续？")) {
+                            deletePackages();
+                        }
+                    } else {
+                        pendingDelete.splice(0, 1);
+                        deletePackages();
+                    }
+                });
+        }
+
+        function isVersionMaxThan(a, b) {
+            var av = a.version.split(".");
+            var bv = b.version.split(".");
+            var max = av.length > bv.length ? av.length : bv.length;
+            for (var i = 0; i < max; i++) {
+                var va = parseInt(i < av.length ? av[i] : 0);
+                var vb = parseInt(i < bv.length ? bv[i] : 0);
+                if (va > vb) return true;
+                if (va < vb) return false;
+            }
+            return false;
+        }
+
     </script>
 }

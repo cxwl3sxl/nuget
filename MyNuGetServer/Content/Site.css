@@ -57,11 +57,18 @@ textarea {
 
 .jumbotron {
     padding: 20px;
+    width: 100%;
+    margin-left: 10px;
+}
+
+.package-div {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: space-between;
 }
 
 .package-list {
-    position: fixed;
-    left: 5px;
     border: solid 1px #adb5bd;
     border-radius: 5px;
     background: whitesmoke;
@@ -76,4 +83,20 @@ textarea {
 
 .li-on {
     background: #dee2e6;
+}
+
+.table-div {
+    height: calc(100vh - 350px);
+    overflow: scroll;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.table-tool {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    margin: 10px;
 }
